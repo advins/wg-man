@@ -111,7 +111,7 @@ function remove_user_from_server {
     sed -i "/# BEGIN ${USER}$/,/# END ${USER}$/d" "$SERVER_NAME.conf"
     if [ -f "keys/${USER}/${USER}.conf" ]; then
         local USER_IP=$(grep -i Address "keys/${USER}/${USER}.conf" | sed 's/Address\s*=\s*//i; s/\/.*//')
-        ip -4 route del ${USER_IP}/32 dev ${SERVER_NAME} || true
+        ip -4 route del ${USER_IP}/24 dev ${SERVER_NAME} || true
     fi
 }
 
