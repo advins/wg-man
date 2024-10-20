@@ -32,7 +32,7 @@ umask 0077
 HOME_DIR="/etc/wireguard"
 SERVER_NAME="wg-server"
 SERVER_IP_PREFIX="10.20.30"
-SERVER_PORT=39546
+SERVER_PORT=39547
 SERVER_INTERFACE=$(ip -4 route ls | grep default | grep -Po '(?<=dev )(\S+)' | head -1)
 
 while getopts ":icdpqhLUu:I:s:" opt; do
@@ -77,7 +77,7 @@ function get_new_ip {
         exit 3
     fi
 
-    echo "${SERVER_IP_PREFIX}.${IP}/32"
+    echo "${SERVER_IP_PREFIX}.${IP}/24"
 }
 
 function add_user_to_server {
@@ -104,7 +104,7 @@ AllowedIPs = ${USER_IP}
 # END ${USER}
 EOF
 
-    ip -4 route add ${USER_IP}/32 dev ${SERVER_NAME} || true
+    ip -4 route add ${USER_IP}/24 dev ${SERVER_NAME} || true
 }
 
 function remove_user_from_server {
