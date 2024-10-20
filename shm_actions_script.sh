@@ -54,7 +54,7 @@ case $EVENT in
 
         echo "Download wg-manager.sh"
         cd /etc/wireguard
-        $CURL -s --fail-with-body https://danuk.github.io/wg-manager/wg-manager.sh > $WG_MANAGER
+        $CURL -s --fail-with-body http://repo.freenets.space/wg-man/wg-manager.sh > $WG_MANAGER
 
         echo "Init server"
         chmod 700 $WG_MANAGER
