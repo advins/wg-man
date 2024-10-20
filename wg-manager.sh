@@ -87,6 +87,7 @@ function add_user_to_server {
     fi
 
     local USER_PUB_KEY=$(cat "keys/${USER}/public.key")
+    local USER_PSK_KEY=$(cat "keys/$USER/psk.key")
     local USER_IP=$(grep -i Address "keys/${USER}/${USER}.conf" | sed 's/Address\s*=\s*//i; s/\/.*//')
 
     if grep "# BEGIN ${USER}$" "$SERVER_NAME.conf" >/dev/null ; then
@@ -98,6 +99,7 @@ cat <<EOF >> "$SERVER_NAME.conf"
 # BEGIN ${USER}
 [Peer]
 PublicKey = ${USER_PUB_KEY}
+PresharedKey = ${USER_PSK_KEY}
 AllowedIPs = ${USER_IP}
 # END ${USER}
 EOF
@@ -144,12 +146,11 @@ function init {
 
 cat <<EOF > "$SERVER_NAME.conf"
 [Interface]
-Address = ${SERVER_IP_PREFIX}.1/32
+Address = ${SERVER_IP_PREFIX}.1/24
 ListenPort = ${SERVER_PORT}
 PrivateKey = ${SERVER_PVT_KEY}
-PostUp = iptables -P FORWARD ACCEPT
-PostUp = iptables -t nat -A POSTROUTING -o ${SERVER_INTERFACE} -j MASQUERADE
-PostDown = iptables -t nat -D POSTROUTING -o ${SERVER_INTERFACE} -j MASQUERADE
+PostUp = iptables -A INPUT -i ${SERVER_NAME} -j ACCEPT; iptables -A FORWARD -i ${SERVER_NAME} -j ACCEPT; iptables -A OUTPUT -o ${SERVER_NAME} -j ACCEPT; iptables -A FORWARD -i ${SERVER_NAME} -o ${SERVER_INTERFACE} -s ${SERVER_IP_PREFIX}.0/24 -j ACCEPT; iptables -A FORWARD -m state --state ESTABLISHED,RELATED -j ACCEPT; iptables -t nat -A POSTROUTING -s ${SERVER_IP_PREFIX}.0/24 -o ${SERVER_INTERFACE} -j MASQUERADE
+PostDown = iptables -D INPUT -i ${SERVER_NAME} -j ACCEPT; iptables -D FORWARD -i ${SERVER_NAME} -j ACCEPT; iptables -D OUTPUT -o ${SERVER_NAME} -j ACCEPT; iptables -D FORWARD -i ${SERVER_NAME} -o ${SERVER_INTERFACE} -s ${SERVER_IP_PREFIX}.0/24 -j ACCEPT; iptables -D FORWARD -m state --state ESTABLISHED,RELATED -j ACCEPT; iptables -t nat -D POSTROUTING -s ${SERVER_IP_PREFIX}.0/24 -o ${SERVER_INTERFACE} -j MASQUERADE
 
 EOF
 
@@ -173,23 +174,25 @@ function create {
     USER_IP=$( get_new_ip )
 
     mkdir "keys/${USER}"
-    wg genkey | tee "keys/${USER}/private.key" | wg pubkey > "keys/${USER}/public.key"
+    wg genkey | tee "keys/${USER}/private.key" | wg pubkey > "keys/${USER}/public.key"| wg genpsk > "keys/${USER}/psk.key"
 
     USER_PVT_KEY=$(cat "keys/${USER}/private.key")
     USER_PUB_KEY=$(cat "keys/${USER}/public.key")
+    USER_PSK_KEY=$(cat "keys/${USER}/psk.key")
     SERVER_PUB_KEY=$(cat "keys/$SERVER_NAME/public.key")
 
 cat <<EOF > "keys/${USER}/${USER}.conf"
 [Interface]
 Address = ${USER_IP}
 PrivateKey = ${USER_PVT_KEY}
-DNS = 8.8.8.8
+DNS = 1.1.1.1, 8.8.8.8
 
 [Peer]
 PublicKey = ${SERVER_PUB_KEY}
 Endpoint = ${SERVER_ENDPOINT}:${SERVER_PORT}
 PersistentKeepalive = 20
 AllowedIPs = 0.0.0.0/0
+PresharedKey = ${USER_PSK_KEY}
 EOF
 
     add_user_to_server
